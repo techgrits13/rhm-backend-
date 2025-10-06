@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RHM Admin</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 0; background:#f7f7fb; color:#222; }
+    header { background:#4f46e5; color:#fff; padding:20px; }
+    main { padding: 20px; max-width: 1000px; margin: 0 auto; }
+    .card { background:#fff; border-radius:12px; padding:16px; margin-bottom:16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    h2 { margin:0 0 12px 0; font-size:18px; }
+    label { display:block; font-weight:600; margin:10px 0 6px; }
+    input[type=text], input[type=url] { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; }
+    input[type=file] { padding:6px 0; }
+    .row { display:flex; gap:12px; flex-wrap: wrap; }
+    .btn { background:#4f46e5; color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; }
+    .btn.secondary { background:#0ea5e9; }
+    .btn.danger { background:#dc2626; }
+    .thumb { width:160px; height:100px; object-fit:cover; border-radius:8px; border:1px solid #eee; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
+    .muted { color:#666; font-size:13px; }
+    .msg { padding:10px 12px; border-radius:8px; margin-bottom:12px; }
+    .msg.ok { background:#ecfeff; color:#0e7490; border:1px solid #a5f3fc; }
+    .msg.err { background:#fee2e2; color:#991b1b; border:1px solid #fecaca; }
+    form.inline { display:inline-block; margin-left:8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>RHM Admin</h1>
+    <div class="muted">Manage slideshow, YouTube sync, and app settings</div>
+  </header>
+  <main>
+    <% if (message) { %><div class="msg ok"><%= message %></div><% } %>
+    <% if (error) { %><div class="msg err"><%= error %></div><% } %>
+
+    <div class="card">
+      <h2>1) YouTube Sync</h2>
+      <form action="/admin-ui/sync" method="post">
+        <button class="btn" type="submit">Run Sync Now</button>
+        <span class="muted">Fetches latest videos and caches them</span>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>2) Radio Slideshow - Add by URL</h2>
+      <form action="/admin-ui/upload" method="post">
+        <label>Title</label>
+        <input type="text" name="title" placeholder="Slide title" />
+        <label>Caption (optional)</label>
+        <input type="text" name="content" placeholder="Short caption" />
+        <label>Image URL</label>
+        <input type="url" name="media_url" placeholder="https://example.com/image.jpg" required />
+        <div style="margin-top:10px"><button class="btn" type="submit">Add Slide</button></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>3) Radio Slideshow - Upload File</h2>
+      <form action="/admin-ui/upload-file" method="post" enctype="multipart/form-data">
+        <label>Title</label>
+        <input type="text" name="title" placeholder="Slide title" />
+        <label>Caption (optional)</label>
+        <input type="text" name="content" placeholder="Short caption" />
+        <label>Choose Image</label>
+        <input type="file" name="image" accept="image/*" required />
+        <div style="margin-top:10px"><button class="btn secondary" type="submit">Upload Slide</button></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>4) Current Slides</h2>
+      <div class="grid">
+        <% if (images && images.length) { images.forEach(function(img){ %>
+          <div class="card" style="padding:10px">
+            <img class="thumb" src="<%= img.media_url %>" alt="slide" />
+            <div class="muted" style="margin-top:6px"><%= img.title || 'Slide' %></div>
+            <form class="inline" action="/admin-ui/delete" method="post">
+              <input type="hidden" name="id" value="<%= img.id %>" />
+              <button class="btn danger" type="submit">Delete</button>
+            </form>
+          </div>
+        <% }) } else { %>
+          <div class="muted">No slides yet. Add some above.</div>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>5) App Settings</h2>
+      <form action="/admin-ui/settings" method="post">
+        <label>Radio Stream URL</label>
+        <input type="url" name="radio_url" value="<%= (settings && settings.radio_url) || '' %>" />
+        <label>Theme</label>
+        <input type="text" name="theme" value="<%= (settings && settings.theme) || 'default' %>" />
+        <label><input type="checkbox" name="notification_enabled" <%= (settings && settings.notification_enabled) ? 'checked' : '' %> /> Notifications enabled</label>
+        <div style="margin-top:10px"><button class="btn" type="submit">Save Settings</button></div>
+      </form>
+    </div>
+  </main>
+</body>
+</html>
