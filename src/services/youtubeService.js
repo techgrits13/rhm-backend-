@@ -8,6 +8,11 @@ const CHURCH_CHANNELS = [
   { handle: '@kayolemainworshipchannel', name: 'Kayole Main Altar' },
   { handle: '@WorshipTV7', name: 'Worship TV' },
   { handle: '@TrendingGospel', name: 'Trending Gospel' },
+  // Added per request
+  { handle: '@repentpreparetheway', name: 'Repent Prepare The Way' },
+  { handle: '@repentancechannel1', name: 'Repentance Channel 1' },
+  { handle: '@CrownTvkeOfficial', name: 'Crown TV KE Official' },
+  { handle: '@yaya_kilimani_altar', name: 'Yaya Kilimani Altar' },
 ];
 
 /**
