@@ -6,6 +6,7 @@ services:
     startCommand: npm start
     autoDeploy: true
     healthCheckPath: /health
+    staticPublishPath: ./public
     envVars:
       - key: NODE_ENV
         value: production

@@ -14,14 +14,17 @@ import adminRoute from './routes/admin.js';
 import adminUIRoute from './routes/adminUI.js';
 import adminAuth from './middleware/adminAuth.js';
 
+// Import YouTube scheduler
+import './jobs/scheduler.js';
+
 dotenv.config();
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+  // Middleware
+  app.use(cors());
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
 // Views and static
 const __filename = fileURLToPath(import.meta.url);
@@ -29,6 +32,7 @@ const __dirname = path.dirname(__filename);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -36,13 +40,25 @@ app.use((req, res, next) => {
   next();
 });
 
-// API Routes
-app.use('/api/videos', videosRoute);
-app.use('/api/radio', radioRoute);
-app.use('/api/bible', bibleRoute);
-app.use('/api/notes', notesRoute);
-app.use('/api/admin', adminRoute);
-app.use('/admin-ui', adminAuth, adminUIRoute);
+// CRITICAL: app-ads.txt route MUST be before other routes
+// This is required by Google AdMob for ad authorization
+app.get('/app-ads.txt', (req, res) => {
+  console.log('✅ app-ads.txt requested - serving directly');
+  res.set({
+    'Content-Type': 'text/plain',
+    'Cache-Control': 'public, max-age=3600',
+    'Access-Control-Allow-Origin': '*'
+  });
+  res.send('google.com, pub-3848557016813463, DIRECT, f08c47fec0942fa0');
+});
+
+  // API Routes
+  app.use('/api/videos', videosRoute);
+  app.use('/api/radio', radioRoute);
+  app.use('/api/bible', bibleRoute);
+  app.use('/api/notes', notesRoute);
+  app.use('/api/admin', adminRoute);
+  app.use('/admin-ui', adminAuth, adminUIRoute);
 
 // Root endpoint
 app.get('/', (req, res) => {
