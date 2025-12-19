@@ -3,16 +3,14 @@ import { config } from '../config.js';
 import supabase from '../utils/supabaseClient.js';
 
 // Your church YouTube channels
-// Note: These are channel handles; we'll resolve them to channel IDs at runtime
-const CHURCH_CHANNELS = [
-  { handle: '@kayolemainworshipchannel', name: 'Kayole Main Altar' },
-  { handle: '@WorshipTV7', name: 'Worship TV' },
-  { handle: '@TrendingGospel', name: 'Trending Gospel' },
-  // Added per request
-  { handle: '@repentpreparetheway', name: 'Repent Prepare The Way' },
-  { handle: '@repentancechannel1', name: 'Repentance Channel 1' },
-  { handle: '@CrownTvkeOfficial', name: 'Crown TV KE Official' },
-  { handle: '@yaya_kilimani_altar', name: 'Yaya Kilimani Altar' },
+// Note: Prefer explicit channel IDs (UC...) to avoid handle mixups
+export const CHURCH_CHANNELS = [
+  { id: 'UC3DgiGIrnmfMbBjDQP0oM-w', handle: '@CrownTvkeOfficial', name: 'Crown TV KE Official' },
+  { id: 'UC4uzQvfZ-TNtr9USnPNg72w', handle: '@Machdan_media', name: 'Machdan Media' },
+  { id: 'UCqdgi-yU4fVlOhKZLrz24rw', handle: '@repentpreparetheway', name: 'Repent Prepare The Way' },
+  { id: 'UCuJUQh03Zub62Vv8uZd9SWA', handle: '@kayolemainworshipchannel', name: 'Kayole Main Altar' },
+  { id: 'UCoEYFha5gALQXSY0dBKCncw', handle: '@thecitymegachurch', name: 'The City Megachurch' },
+  { id: 'UC1Ej2mG1R8L4R2c1I7Sqq4A', handle: '@repentancechannel1', name: 'Repentance Channel 1' },
 ];
 
 /**

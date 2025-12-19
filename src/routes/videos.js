@@ -1,15 +1,22 @@
 import express from 'express';
 import supabase from '../utils/supabaseClient.js';
+import { CHURCH_CHANNELS } from '../services/youtubeService.js';
 
 const router = express.Router();
 
-// GET /api/videos - Fetch all cached videos
+const ALLOWED_CHANNEL_IDS = CHURCH_CHANNELS.map((c) => c.id).filter(Boolean);
+
+// GET /api/videos - Fetch all cached videos from allowed church channels only
 router.get('/', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const query = supabase
       .from('videos')
       .select('*')
       .order('published_at', { ascending: false });
+
+    const { data, error } = ALLOWED_CHANNEL_IDS.length
+      ? await query.in('channel_id', ALLOWED_CHANNEL_IDS)
+      : await query;
 
     if (error) throw error;
 
