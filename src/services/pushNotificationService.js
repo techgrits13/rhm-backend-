@@ -1,5 +1,5 @@
 import { Expo } from 'expo-server-sdk';
-import { supabase } from '../utils/supabaseClient.js';
+import supabase from '../utils/supabaseClient.js';
 
 // Create a new Expo SDK client
 const expo = new Expo();
