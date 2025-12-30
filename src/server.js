@@ -12,6 +12,7 @@ import bibleRoute from './routes/bible.js';
 import notesRoute from './routes/notes.js';
 import adminRoute from './routes/admin.js';
 import adminUIRoute from './routes/adminUI.js';
+import notificationsRoute from './routes/notifications.js';
 import adminAuth from './middleware/adminAuth.js';
 
 // Import YouTube scheduler
@@ -21,10 +22,10 @@ dotenv.config();
 
 const app = express();
 
-  // Middleware
-  app.use(cors());
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Views and static
 const __filename = fileURLToPath(import.meta.url);
@@ -52,13 +53,14 @@ app.get('/app-ads.txt', (req, res) => {
   res.send('google.com, pub-3848557016813463, DIRECT, f08c47fec0942fa0');
 });
 
-  // API Routes
-  app.use('/api/videos', videosRoute);
-  app.use('/api/radio', radioRoute);
-  app.use('/api/bible', bibleRoute);
-  app.use('/api/notes', notesRoute);
-  app.use('/api/admin', adminRoute);
-  app.use('/admin-ui', adminAuth, adminUIRoute);
+// API Routes
+app.use('/api/videos', videosRoute);
+app.use('/api/radio', radioRoute);
+app.use('/api/bible', bibleRoute);
+app.use('/api/notes', notesRoute);
+app.use('/api/admin', adminRoute);
+app.use('/api/notifications', notificationsRoute);
+app.use('/admin-ui', adminAuth, adminUIRoute);
 
 // Root endpoint
 app.get('/', (req, res) => {
