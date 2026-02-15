@@ -127,6 +127,34 @@ router.get('/', async (req, res) => {
   }
 });
 
+// DEBUG ROUTE: Test Supabase Config
+router.get('/test-config', async (req, res) => {
+  try {
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    // Test Storage
+    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+
+    // Test DB
+    const { data: dbData, error: dbError } = await supabase.from('app_settings').select('count', { count: 'exact', head: true });
+
+    res.json({
+      env: {
+        url: url ? `Present (${url.substring(0, 15)}...)` : 'MISSING',
+        key: key ? `Present (Starts: ${key.substring(0, 10)}... Ends: ${key.substring(key.length - 5)})` : 'MISSING',
+        keyLength: key ? key.length : 0
+      },
+      tests: {
+        storage: bucketError ? { success: false, error: bucketError } : { success: true, buckets: buckets?.map(b => b.name) },
+        database: dbError ? { success: false, error: dbError } : { success: true, count: dbData }
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, stack: err.stack });
+  }
+});
+
 // Upload slideshow image via file (multipart)
 router.post('/upload-file', upload.single('image'), async (req, res) => {
   try {
