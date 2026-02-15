@@ -63,8 +63,8 @@ const storage = multer.diskStorage({
 // File filter for security
 const fileFilter = (_req, file, cb) => {
   if (file.fieldname === 'audio') {
-    if (!ALLOWED_AUDIO_TYPES.includes(file.mimetype) && !file.originalname.match(/\.(mp3|wav|m4a)$/i)) {
-      return cb(new Error('Invalid audio type. Only MP3, WAV, M4A allowed.'), false);
+    if (!ALLOWED_AUDIO_TYPES.includes(file.mimetype) && !file.originalname.match(/\.(mp3|mpeg|mpga|wav|m4a|aac|ogg|flac)$/i)) {
+      return cb(new Error('Invalid audio type. Supported: MP3, MPEG, WAV, M4A, AAC, OGG, FLAC'), false);
     }
   } else {
     // Images (cover or slideshow)
@@ -334,7 +334,10 @@ router.post('/music/upload', upload.fields([{ name: 'audio', maxCount: 1 }, { na
           upsert: false
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase Upload Error:', error);
+        throw error;
+      }
 
       // Get Public URL
       const { data: { publicUrl } } = supabase.storage
