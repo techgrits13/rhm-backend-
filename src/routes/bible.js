@@ -10,8 +10,8 @@ router.get('/verse/:reference', async (req, res) => {
 
     // Using bible-api.com (free, no API key needed)
     const apiUrl = `https://bible-api.com/${encodeURIComponent(reference)}?translation=kjv`;
-    
-    const response = await axios.get(apiUrl);
+
+    const response = await axios.get(apiUrl, { timeout: 10000 }); // 10 second timeout
 
     if (response.data && response.data.text) {
       res.json({

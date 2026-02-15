@@ -81,6 +81,9 @@ export async function sendPushNotificationToMultiple(expoPushTokens, title, body
  */
 export async function sendNotificationToAll(title, body, data = {}) {
     try {
+        // Create in-app notification first
+        await createInAppNotification(title, body, data);
+
         // Get all active push tokens from database
         const { data: tokens, error } = await supabase
             .from('push_tokens')
@@ -104,6 +107,104 @@ export async function sendNotificationToAll(title, body, data = {}) {
         return { success: false, error: error.message };
     }
 }
+
+/**
+ * Create an in-app notification (stored in database)
+ */
+export async function createInAppNotification(title, body, data = {}) {
+    try {
+        const { data: notification, error } = await supabase
+            .from('in_app_notifications')
+            .insert({
+                title,
+                body,
+                data,
+                read: false,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating in-app notification:', error);
+            return { success: false, error: error.message };
+        }
+
+        console.log('In-app notification created:', notification.id);
+        return { success: true, notification };
+    } catch (error) {
+        console.error('Error creating in-app notification:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Get unread in-app notifications
+ */
+export async function getUnreadNotifications(limit = 50) {
+    try {
+        const { data: notifications, error } = await supabase
+            .from('in_app_notifications')
+            .select('*')
+            .eq('read', false)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            console.error('Error fetching unread notifications:', error);
+            return { success: false, error: error.message };
+        }
+
+        return { success: true, notifications: notifications || [] };
+    } catch (error) {
+        console.error('Error fetching unread notifications:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Mark notification as read
+ */
+export async function markNotificationAsRead(notificationId) {
+    try {
+        const { error } = await supabase
+            .from('in_app_notifications')
+            .update({ read: true })
+            .eq('id', notificationId);
+
+        if (error) {
+            console.error('Error marking notification as read:', error);
+            return { success: false, error: error.message };
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Mark all notifications as read
+ */
+export async function markAllNotificationsAsRead() {
+    try {
+        const { error } = await supabase
+            .from('in_app_notifications')
+            .update({ read: true })
+            .eq('read', false);
+
+        if (error) {
+            console.error('Error marking all notifications as read:', error);
+            return { success: false, error: error.message };
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error('Error marking all notifications as read:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 
 /**
  * Send notification about new video upload

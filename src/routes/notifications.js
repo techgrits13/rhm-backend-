@@ -6,6 +6,7 @@ import {
     sendNotificationToAll,
     cleanupInvalidTokens,
 } from '../services/pushNotificationService.js';
+import { notificationAuth } from '../middleware/notificationAuth.js';
 
 const router = express.Router();
 
@@ -61,9 +62,9 @@ router.post('/unregister', async (req, res) => {
 
 /**
  * POST /api/notifications/send
- * Send a push notification to a specific token (admin only)
+ * Send a push notification to a specific token (protected)
  */
-router.post('/send', async (req, res) => {
+router.post('/send', notificationAuth, async (req, res) => {
     try {
         const { expo_push_token, title, body, data } = req.body;
 
@@ -86,9 +87,9 @@ router.post('/send', async (req, res) => {
 
 /**
  * POST /api/notifications/send-all
- * Send a push notification to all registered users (admin only)
+ * Send a push notification to all registered users (protected)
  */
-router.post('/send-all', async (req, res) => {
+router.post('/send-all', notificationAuth, async (req, res) => {
     try {
         const { title, body, data } = req.body;
 
@@ -114,9 +115,9 @@ router.post('/send-all', async (req, res) => {
 
 /**
  * POST /api/notifications/cleanup
- * Clean up invalid/expired tokens (admin only)
+ * Clean up invalid/expired tokens (protected)
  */
-router.post('/cleanup', async (req, res) => {
+router.post('/cleanup', notificationAuth, async (req, res) => {
     try {
         const result = await cleanupInvalidTokens();
 
@@ -135,6 +136,60 @@ router.post('/cleanup', async (req, res) => {
 });
 
 /**
+ * GET /api/notifications/in-app
+ * Get unread in-app notifications
+ */
+router.get('/in-app', async (req, res) => {
+    try {
+        const { getUnreadNotifications } = await import('../services/pushNotificationService.js');
+        const limit = parseInt(req.query.limit) || 50;
+
+        const result = await getUnreadNotifications(limit);
+
+        if (result.success) {
+            res.json({
+                notifications: result.notifications,
+                count: result.notifications.length,
+            });
+        } else {
+            res.status(500).json({ error: result.error });
+        }
+    } catch (error) {
+        console.error('Error in /in-app:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/notifications/in-app/mark-read
+ * Mark notification(s) as read
+ */
+router.post('/in-app/mark-read', async (req, res) => {
+    try {
+        const { markNotificationAsRead, markAllNotificationsAsRead } = await import('../services/pushNotificationService.js');
+        const { notification_id, mark_all } = req.body;
+
+        let result;
+        if (mark_all) {
+            result = await markAllNotificationsAsRead();
+        } else if (notification_id) {
+            result = await markNotificationAsRead(notification_id);
+        } else {
+            return res.status(400).json({ error: 'notification_id or mark_all is required' });
+        }
+
+        if (result.success) {
+            res.json({ message: 'Notification(s) marked as read' });
+        } else {
+            res.status(500).json({ error: result.error });
+        }
+    } catch (error) {
+        console.error('Error in /in-app/mark-read:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * GET /api/notifications/test
  * Test endpoint to verify notifications are working
  */
@@ -147,6 +202,8 @@ router.get('/test', (req, res) => {
             send: 'POST /api/notifications/send',
             sendAll: 'POST /api/notifications/send-all',
             cleanup: 'POST /api/notifications/cleanup',
+            getInApp: 'GET /api/notifications/in-app',
+            markRead: 'POST /api/notifications/in-app/mark-read',
         },
     });
 });

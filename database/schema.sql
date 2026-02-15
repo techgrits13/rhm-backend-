@@ -66,6 +66,27 @@ CREATE TABLE IF NOT EXISTS app_settings (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ============================================
+-- TABLE: music
+-- Purpose: Store uploaded music tracks
+-- ============================================
+CREATE TABLE IF NOT EXISTS music (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  title TEXT NOT NULL,
+  artist TEXT DEFAULT 'Unknown Artist',
+  album TEXT,
+  audio_url TEXT NOT NULL,
+  cover_url TEXT,
+  lyrics TEXT,
+  duration INTEGER DEFAULT 0, -- in seconds
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for sorting and text search
+CREATE INDEX IF NOT EXISTS idx_music_title ON music(title);
+CREATE INDEX IF NOT EXISTS idx_music_artist ON music(artist);
+CREATE INDEX IF NOT EXISTS idx_music_created_at ON music(created_at DESC);
+
 -- Insert default settings (only if table is empty)
 INSERT INTO app_settings (theme, radio_url, notification_enabled)
 SELECT 'default', 'https://s3.radio.co/s97f38db97/listen', TRUE

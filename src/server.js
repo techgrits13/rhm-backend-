@@ -13,6 +13,8 @@ import notesRoute from './routes/notes.js';
 import adminRoute from './routes/admin.js';
 import adminUIRoute from './routes/adminUI.js';
 import notificationsRoute from './routes/notifications.js';
+import musicRoute from './routes/music.js';
+import breakingNewsRoute from './routes/breakingNews.js';
 import adminAuth from './middleware/adminAuth.js';
 
 // Import YouTube scheduler
@@ -60,6 +62,8 @@ app.use('/api/bible', bibleRoute);
 app.use('/api/notes', notesRoute);
 app.use('/api/admin', adminRoute);
 app.use('/api/notifications', notificationsRoute);
+app.use('/api/music', musicRoute);
+app.use('/api/breaking-news', breakingNewsRoute);
 app.use('/admin-ui', adminAuth, adminUIRoute);
 
 // Root endpoint
