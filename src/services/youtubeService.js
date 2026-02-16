@@ -62,7 +62,11 @@ export const fetchLatestVideos = async (channelId, maxResults = 10) => {
         channel_id: channelId,
       }));
   } catch (error) {
-    console.error(`Error fetching videos for channel ${channelId}:`, error.message);
+    if (error.response) {
+      console.error(`Error fetching videos for channel ${channelId}:`, error.response.status, JSON.stringify(error.response.data, null, 2));
+    } else {
+      console.error(`Error fetching videos for channel ${channelId}:`, error.message);
+    }
     return [];
   }
 };
@@ -111,7 +115,11 @@ const resolveChannelId = async (handleOrId) => {
       return searchResp.data.items[0]?.id?.channelId || null;
     }
   } catch (err) {
-    console.error('Failed to resolve channel handle to ID:', handleOrId, err?.message || err);
+    if (err.response) {
+      console.error('Failed to resolve channel handle to ID:', handleOrId, err.response.status, JSON.stringify(err.response.data, null, 2));
+    } else {
+      console.error('Failed to resolve channel handle to ID:', handleOrId, err?.message || err);
+    }
   }
   return null;
 };
