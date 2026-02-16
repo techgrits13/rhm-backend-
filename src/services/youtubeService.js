@@ -14,47 +14,36 @@ export const CHURCH_CHANNELS = [
 ];
 
 /**
- * Fetch latest videos from a YouTube channel
+ * Fetch latest videos from a YouTube channel using the 'uploads' playlist.
+ * This is much more quota-efficient (1 unit) than 'search' (100 units).
  */
 export const fetchLatestVideos = async (channelId, maxResults = 10) => {
   try {
-    const response = await axios.get('https://www.googleapis.com/youtube/v3/search', {
+    // Every channel has an "uploads" playlist where the ID is simply the channel ID with 'UU' instead of 'UC'
+    const uploadsPlaylistId = channelId.replace(/^UC/, 'UU');
+
+    console.log(`📡 Fetching playlistItems for playlist: ${uploadsPlaylistId}`);
+
+    const response = await axios.get('https://www.googleapis.com/youtube/v3/playlistItems', {
       params: {
         key: config.youtube.apiKey,
-        channelId: channelId,
-        part: 'snippet',
-        order: 'date',
-        type: 'video',
+        playlistId: uploadsPlaylistId,
+        part: 'snippet,status,contentDetails',
         maxResults: maxResults,
       },
     });
 
     const items = response.data.items || [];
-    const ids = items.map((i) => i.id?.videoId).filter(Boolean);
 
-    // If no results, return []
-    if (!ids.length) return [];
-
-    // Check which are embeddable/public
-    const vidResp = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
-      params: {
-        key: config.youtube.apiKey,
-        id: ids.join(','),
-        part: 'status,contentDetails',
-        maxResults: maxResults,
-      },
-    });
-
-    const embeddableSet = new Set(
-      (vidResp.data.items || [])
-        .filter((v) => v.status?.embeddable && v.status?.privacyStatus === 'public')
-        .map((v) => v.id)
-    );
-
+    // Filter and map to our format
     return items
-      .filter((item) => embeddableSet.has(item.id.videoId))
+      .filter((item) => {
+        // Ensure it's public and status is available
+        const status = item.status?.privacyStatus || 'public';
+        return status === 'public';
+      })
       .map((item) => ({
-        video_id: item.id.videoId,
+        video_id: item.contentDetails?.videoId || item.snippet?.resourceId?.videoId,
         title: item.snippet.title,
         description: item.snippet.description,
         thumbnail_url: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
