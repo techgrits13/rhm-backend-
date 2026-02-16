@@ -100,8 +100,20 @@ app.use((err, req, res, next) => {
 
 // Start server
 const PORT = config.port;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
   console.log(`📍 Environment: ${config.nodeEnv}`);
   console.log(`🌐 API available at: http://localhost:${PORT}`);
 });
+
+// Global Process Safety Nets
+process.on('uncaughtException', (err) => {
+  console.error('🔥 CRITICAL: Uncaught Exception:', err);
+  // In production, we might want to restart, but for now we keep it alive
+  // to prevent a hard crash loop if it's minor.
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🔥 CRITICAL: Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
