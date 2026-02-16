@@ -456,8 +456,12 @@ router.post('/music/upload', upload.fields([{ name: 'audio', maxCount: 1 }, { na
         duration: 0 // Duration detection would require 'music-metadata' or similar
       }]);
 
-    if (dbError) throw dbError;
+    if (dbError) {
+      console.error('❌ Music DB Insert Error:', JSON.stringify(dbError, null, 2));
+      throw new Error(`Database insert failed: ${dbError.message}. Check RLS policies on music table.`);
+    }
 
+    console.log('✅ Music track inserted successfully into database');
     res.redirect('/admin-ui?message=' + encodeURIComponent('Music track uploaded successfully!'));
   } catch (err) {
     // Cleanup if simplified
@@ -521,8 +525,8 @@ router.post('/news/create', upload.single('media'), async (req, res) => {
         media_url = publicUrl;
         console.log(`✅ Breaking news media uploaded: ${publicUrl}`);
       } else {
-        console.error('❌ Supabase upload error:', error);
-        throw new Error(`Media upload failed: ${error.message}`);
+        console.error('❌ Supabase storage upload error:', JSON.stringify(error, null, 2));
+        throw new Error(`Media upload failed: ${error.message}. Check that 'news_media' bucket exists and is public.`);
       }
 
       try { fs.unlinkSync(filePath); } catch (e) { console.error('Failed to cleanup temp file:', e); }
@@ -546,7 +550,12 @@ router.post('/news/create', upload.single('media'), async (req, res) => {
         poll_options
       }]);
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Breaking News DB Insert Error:', JSON.stringify(error, null, 2));
+      throw new Error(`Database insert failed: ${error.message}. Check RLS policies on breaking_news table.`);
+    }
+
+    console.log('✅ Breaking news posted successfully to database');
     res.redirect('/admin-ui?message=' + encodeURIComponent('News posted successfully'));
   } catch (err) {
     res.redirect('/admin-ui?error=' + encodeURIComponent(err.message || 'Failed to post news'));

@@ -7,23 +7,38 @@ const router = express.Router();
 // GET /api/music - Fetch all music tracks
 router.get('/', async (req, res) => {
     try {
-        const { sort, order } = req.query;
+        const { sort, limit, offset } = req.query;
+        const hasPagination = typeof limit !== 'undefined' || typeof offset !== 'undefined';
+
+        const parsedLimit = Math.max(0, parseInt(limit ?? '0', 10) || 0);
+        const parsedOffset = Math.max(0, parseInt(offset ?? '0', 10) || 0);
 
         let query = supabase
             .from('music')
-            .select('*');
+            .select('*', { count: hasPagination ? 'exact' : undefined });
 
-        // Default sort by title A-Z
         if (sort === 'newest') {
             query = query.order('created_at', { ascending: false });
         } else {
             query = query.order('title', { ascending: true });
         }
 
-        const { data, error } = await query;
+        if (hasPagination && parsedLimit > 0) {
+            query = query.range(parsedOffset, parsedOffset + parsedLimit - 1);
+        }
+
+        const { data, error, count } = await query;
 
         if (error) throw error;
-        res.json(data);
+
+        if (hasPagination) {
+            return res.json({
+                data: data || [],
+                total: count || 0,
+            });
+        }
+
+        return res.json(data || []);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch music', details: err.message });
     }

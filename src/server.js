@@ -16,6 +16,7 @@ import notificationsRoute from './routes/notifications.js';
 import musicRoute from './routes/music.js';
 import breakingNewsRoute from './routes/breakingNews.js';
 import adminAuth from './middleware/adminAuth.js';
+import mobileAdminRoute from './routes/mobileAdmin.js';
 
 // Import YouTube scheduler
 import './jobs/scheduler.js';
@@ -64,6 +65,7 @@ app.use('/api/admin', adminRoute);
 app.use('/api/notifications', notificationsRoute);
 app.use('/api/music', musicRoute);
 app.use('/api/breaking-news', breakingNewsRoute);
+app.use('/api/mobile-admin', mobileAdminRoute); // Mobile admin uploads (no auth)
 app.use('/admin-ui', adminAuth, adminUIRoute);
 
 // Root endpoint
