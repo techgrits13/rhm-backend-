@@ -169,20 +169,59 @@ router.post('/upload-file', upload.single('image'), async (req, res) => {
       throw new Error('Title too long');
     }
 
-    const publicPath = `/uploads/${req.file.filename}`;
+    // Upload to Supabase Storage instead of local filesystem
+    const fileExt = path.extname(req.file.originalname);
+    const fileName = `slideshow-${Date.now()}-${Math.random().toString(36).slice(2)}${fileExt}`;
+    const fileBuffer = fs.readFileSync(req.file.path);
 
+    const { data, error: uploadError } = await supabase.storage
+      .from('news_media')
+      .upload(fileName, fileBuffer, {
+        contentType: req.file.mimetype,
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('❌ Supabase upload error:', uploadError);
+      throw new Error(`Storage upload failed: ${uploadError.message}`);
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('news_media')
+      .getPublicUrl(fileName);
+
+    if (!publicUrl) {
+      throw new Error('Failed to generate public URL');
+    }
+
+    console.log(`✅ Slideshow image uploaded: ${publicUrl}`);
+
+    // Clean up temp file
+    try {
+      fs.unlinkSync(req.file.path);
+    } catch (e) {
+      console.error('Failed to cleanup temp file:', e);
+    }
+
+    // Insert into database with Supabase URL
     const { error } = await supabase
       .from('admin_content')
       .insert([{
         type: 'radio_slideshow',
         title,
         content,
-        media_url: publicPath
+        media_url: publicUrl
       }]);
-    if (error) throw error;
+
+    if (error) {
+      console.error('❌ Database insert error:', error);
+      throw new Error(`Database error: ${error.message}`);
+    }
 
     res.redirect('/admin-ui?message=' + encodeURIComponent('Slide uploaded successfully'));
   } catch (err) {
+    console.error('❌ Slideshow upload error:', err);
     // Clean up uploaded file on error
     if (req.file) {
       try {
@@ -375,31 +414,35 @@ router.post('/music/upload', upload.fields([{ name: 'audio', maxCount: 1 }, { na
       return publicUrl;
     };
 
-    // Upload Audio
+    // Upload Audio - NO FALLBACK, must succeed
     let audioUrl = '';
     try {
       audioUrl = await uploadToSupabase(audioFile, 'music_files');
+      console.log(`✅ Audio uploaded successfully: ${audioUrl}`);
     } catch (e) {
-      // Fallback for local dev if buckets don't exist: use local path
-      console.warn('Supabase upload failed (buckets might be missing), using local path:', e.message);
-      audioUrl = `/uploads/${audioFile.filename}`;
+      console.error('❌ Audio upload failed:', e);
+      throw new Error(`Audio upload failed: ${e.message}. Please check Supabase Storage bucket 'music_files' exists and is public.`);
     }
 
-    // Upload Cover (if exists)
+    // Upload Cover (if exists) - Optional, can continue without it
     let coverUrl = null;
     if (coverFile) {
       try {
         coverUrl = await uploadToSupabase(coverFile, 'music_covers');
+        console.log(`✅ Cover uploaded successfully: ${coverUrl}`);
       } catch (e) {
-        coverUrl = `/uploads/${coverFile.filename}`;
+        console.error('⚠️ Cover upload failed (continuing without cover):', e);
+        // Cover is optional, so we can continue without it
       }
     }
 
-    // Clean up local files
+    // Clean up local temp files
     try {
       fs.unlinkSync(audioFile.path);
       if (coverFile) fs.unlinkSync(coverFile.path);
-    } catch (e) { console.error('Failed to cleanup temp files', e); }
+    } catch (e) {
+      console.error('Failed to cleanup temp files:', e);
+    }
 
     // Insert into DB
     const { error: dbError } = await supabase
@@ -476,12 +519,13 @@ router.post('/news/create', upload.single('media'), async (req, res) => {
       if (!error) {
         const { data: { publicUrl } } = supabase.storage.from('news_media').getPublicUrl(fileName);
         media_url = publicUrl;
+        console.log(`✅ Breaking news media uploaded: ${publicUrl}`);
       } else {
-        // Fallback to local
-        media_url = `/uploads/${req.file.filename}`;
+        console.error('❌ Supabase upload error:', error);
+        throw new Error(`Media upload failed: ${error.message}`);
       }
 
-      try { fs.unlinkSync(filePath); } catch { }
+      try { fs.unlinkSync(filePath); } catch (e) { console.error('Failed to cleanup temp file:', e); }
     }
 
     // Handle Poll options
