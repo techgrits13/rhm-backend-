@@ -14,15 +14,26 @@ export const CHURCH_CHANNELS = [
 ];
 
 /**
+ * Variable to track when we last hit a quota error.
+ */
+let isQuotaExceeded = false;
+
+/**
  * Fetch latest videos from a YouTube channel using the 'uploads' playlist.
  * This is much more quota-efficient (1 unit) than 'search' (100 units).
  */
 export const fetchLatestVideos = async (channelId, maxResults = 10) => {
+  if (isQuotaExceeded) {
+    const now = new Date();
+    // Daily reset usually happens at Midnight PT. 
+    // We check if it's a new day (rough check based on server hours)
+    if (now.getHours() === 0) isQuotaExceeded = false;
+    if (isQuotaExceeded) return [];
+  }
+
   try {
     // Every channel has an "uploads" playlist where the ID is simply the channel ID with 'UU' instead of 'UC'
     const uploadsPlaylistId = channelId.replace(/^UC/, 'UU');
-
-    console.log(`📡 Fetching playlistItems for playlist: ${uploadsPlaylistId}`);
 
     const response = await axios.get('https://www.googleapis.com/youtube/v3/playlistItems', {
       params: {
@@ -31,6 +42,7 @@ export const fetchLatestVideos = async (channelId, maxResults = 10) => {
         part: 'snippet,status,contentDetails',
         maxResults: maxResults,
       },
+      timeout: 10000,
     });
 
     const items = response.data.items || [];
@@ -38,7 +50,6 @@ export const fetchLatestVideos = async (channelId, maxResults = 10) => {
     // Filter and map to our format
     return items
       .filter((item) => {
-        // Ensure it's public and status is available
         const status = item.status?.privacyStatus || 'public';
         return status === 'public';
       })
@@ -52,9 +63,17 @@ export const fetchLatestVideos = async (channelId, maxResults = 10) => {
       }));
   } catch (error) {
     if (error.response) {
-      console.error(`Error fetching videos for channel ${channelId}:`, error.response.status, JSON.stringify(error.response.data, null, 2));
+      const status = error.response.status;
+      const data = error.response.data;
+
+      if (status === 403 && data?.error?.errors?.some(e => e.reason === 'quotaExceeded')) {
+        console.error('⚠️ YOUTUBE QUOTA EXCEEDED. Stopping sync for today.');
+        isQuotaExceeded = true;
+      } else {
+        console.error(`Error fetching videos for channel ${channelId}:`, status, JSON.stringify(data, null, 2));
+      }
     } else {
-      console.error(`Error fetching videos for channel ${channelId}:`, error.message);
+      console.error(`Network or Timeout error for channel ${channelId}:`, error.message);
     }
     return [];
   }
@@ -65,8 +84,9 @@ export const fetchLatestVideos = async (channelId, maxResults = 10) => {
  * Tries the channels API with forHandle, then falls back to search API
  */
 const resolveChannelId = async (handleOrId) => {
+  if (isQuotaExceeded) return null;
+
   try {
-    // If already an ID (starts with UC), return as-is
     if (typeof handleOrId === 'string' && handleOrId.startsWith('UC')) {
       return handleOrId;
     }
@@ -74,7 +94,6 @@ const resolveChannelId = async (handleOrId) => {
     const handle = String(handleOrId || '').trim();
     if (!handle) return null;
 
-    // Try channels endpoint with forHandle
     try {
       const resp = await axios.get('https://www.googleapis.com/youtube/v3/channels', {
         params: {
@@ -82,15 +101,13 @@ const resolveChannelId = async (handleOrId) => {
           forHandle: handle.startsWith('@') ? handle : `@${handle}`,
           key: config.youtube.apiKey,
         },
+        timeout: 5000,
       });
       if (resp.data?.items?.length) {
         return resp.data.items[0].id;
       }
-    } catch (e) {
-      // fall through to search approach
-    }
+    } catch (e) { }
 
-    // Fallback: search for the channel by handle
     const searchResp = await axios.get('https://www.googleapis.com/youtube/v3/search', {
       params: {
         part: 'snippet',
@@ -99,15 +116,14 @@ const resolveChannelId = async (handleOrId) => {
         maxResults: 1,
         key: config.youtube.apiKey,
       },
+      timeout: 5000,
     });
     if (searchResp.data?.items?.length) {
       return searchResp.data.items[0]?.id?.channelId || null;
     }
   } catch (err) {
-    if (err.response) {
-      console.error('Failed to resolve channel handle to ID:', handleOrId, err.response.status, JSON.stringify(err.response.data, null, 2));
-    } else {
-      console.error('Failed to resolve channel handle to ID:', handleOrId, err?.message || err);
+    if (err.response?.status === 403) {
+      console.warn('YouTube API quota might be limited at resolve phase');
     }
   }
   return null;
@@ -127,7 +143,7 @@ export const cacheVideoToSupabase = async (videoData) => {
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error caching video to Supabase:', error.message);
+    console.error('Supabase Error:', error.message);
     return null;
   }
 };
@@ -136,29 +152,42 @@ export const cacheVideoToSupabase = async (videoData) => {
  * Check for new videos from all church channels and cache them
  */
 export const checkForNewVideos = async () => {
+  if (!config.youtube.apiKey) {
+    console.error('❌ YOUTUBE_API_KEY is missing. Sync skipped.');
+    return 0;
+  }
+
+  if (isQuotaExceeded) {
+    console.log('🔇 Sync skipped: Quota is currently exceeded.');
+    return 0;
+  }
+
   console.log('🔄 Starting YouTube sync...');
   let totalNewVideos = 0;
 
   for (const channel of CHURCH_CHANNELS) {
-    console.log(`📺 Resolving channel: ${channel.name} (${channel.handle || channel.id || 'unknown'})`);
-    const channelId = await resolveChannelId(channel.id || channel.handle);
-    if (!channelId) {
-      console.warn(`⚠️  Could not resolve channel ID for ${channel.name}. Skipping.`);
-      continue;
-    }
+    try {
+      const channelId = await resolveChannelId(channel.id || channel.handle);
+      if (!channelId) continue;
 
-    console.log(`📺 Fetching videos from ${channel.name} [${channelId}]...`);
-    const videos = await fetchLatestVideos(channelId, 10);
+      const videos = await fetchLatestVideos(channelId, 10);
+      if (!videos.length) continue;
 
-    for (const video of videos) {
-      const cached = await cacheVideoToSupabase(video);
-      if (cached) {
-        totalNewVideos++;
-        console.log(`✅ Cached: ${video.title}`);
+      for (const video of videos) {
+        try {
+          const cached = await cacheVideoToSupabase(video);
+          if (cached) totalNewVideos++;
+        } catch (dbErr) {
+          console.error(`DB Error caching video ${video.video_id}:`, dbErr.message);
+        }
       }
+    } catch (channelErr) {
+      console.error(`Error processing channel ${channel.name}:`, channelErr.message);
     }
+
+    if (isQuotaExceeded) break;
   }
 
-  console.log(`✨ YouTube sync complete. Total new/updated videos: ${totalNewVideos}`);
+  console.log(`✨ Sync complete. Total processed: ${totalNewVideos}`);
   return totalNewVideos;
 };
